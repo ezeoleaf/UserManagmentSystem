@@ -5,7 +5,7 @@
 	<meta http-equiv="x-ua-compatible" content="ie=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 	<link type="text/css" rel="stylesheet" href="css/materialize.css" media="screen,projection"/>
-	<title>User Managment System</title>
+	<title>User Management System</title>
 </head>
 <body>
 <div class="container-fluid">
@@ -95,7 +95,6 @@ function doLogin()
 		data: param,
 		success: function(response)
 		{
-			l.stop();
 			const resp = parse(response);
 			if(resp.success) {
 				redirect('home.html');
@@ -105,9 +104,10 @@ function doLogin()
 		},
 		error: function(msg)
 		{
-			l.stop();
 			toasty(`We have encountered some troubles.`,'error');
 		}
+	}).done(function() {
+  		l.stop();
 	});
 
 	return false;

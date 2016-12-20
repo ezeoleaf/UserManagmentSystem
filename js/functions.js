@@ -36,14 +36,12 @@ function toasty(text,style,time)
 	$('.toast').css('color',color);
 	$('#toast-container').css('width','100%');
 	$('#toast-container').css('top','auto');
-	//$('#toast-container').css('right','auto');
 	$('#toast-container').css('bottom','50%');
 	$('.toast').css('width','100%');
 	$('.toast').css('text-align','center');
 	$('.toast span').css('width','100%');
 }
 
-const excludedLoc = ['index','registro','restauraPass'];
 const storage = window.localStorage;
 const options = {
 	'home':'liHome',
@@ -101,23 +99,6 @@ function setItem(item,val)
 	storage.setItem(item,val);
 }
 
-function getIds(data)
-{
-	let excludedIds = '(';
-	for(let i = 0; i < data.length; i++)
-	{
-		if(excludedIds != '(')
-		{
-			excludedIds += ',';
-		}
-		excludedIds += data[i].id;
-	}
-	excludedIds += ')';
-	excludedIds = (excludedIds == '()') ? '(0)' : excludedIds;
-
-	return excludedIds;
-}
-
 function logout()
 {
 	const param = {
@@ -125,7 +106,7 @@ function logout()
 	};
 	$.ajax({
 		type: "POST",
-		url: './api/userController.php',
+		url: './api/userAppController.php',
 		data: param,
 		success: function(response)
 		{
@@ -136,31 +117,6 @@ function logout()
 			toasty(`Se ha producido un error de conexión.`,'error');
 		}
 	});
-}
-
-function checkMenu()
-{
-	if(excludedLoc.indexOf(getLoc()) != -1) return;
-	let cH,pH,eH,dH,pfH,iH,gH,nH;
-	hH = 'home.html';
-	cmH = 'comercio.html';
-	rH = 'rubro.html';
-	cH = 'ciudad.html';
-
-	
-	addClick('homeHref',hH);
-	addClick('comercioHref',cmH);
-	addClick('ciudadHref',cmH);
-	addClick('rubroHref',cmH);
-}
-
-function addClick(classN,url)
-{
-	const arr = document.getElementsByClassName(classN);
-	for(let i = 0; i < arr.length; i++)
-	{
-		arr[i].addEventListener('click',function(){redirect(url)});
-	}
 }
 
 function emptyCheck(data,type)
@@ -242,62 +198,6 @@ function setLocation()
 	setItem('location',getLoc());
 }
 
-function unformatDate(d)
-{
-	let vD = d.split('-');
-	let year = ", "+vD[0];
-	let day = parseInt(vD[2]);
-	
-	let month = "";
-	switch(vD[1])
-	{
-		case "01": month = ' January'; break;
-		case "02": month = ' February'; break;
-		case "03": month = ' March'; break;
-		case "04": month = ' April'; break;
-		case "05": month = ' May'; break;
-		case "06": month = ' June'; break;
-		case "07": month = ' July'; break;
-		case "08": month = ' August'; break;
-		case "09": month = ' September'; break;
-		case "10": month = ' October'; break;
-		case "11": month = ' November'; break;
-		case "12": month = ' December'; break;
-	}
-	
-	return `${day}${month}${year}`;
-}
-
-function formatDate(date)
-{
-	let vDate = date.split(',');
-	let year = vDate[1].trim();
-	let monthName = vDate[0].split(' ')[1].toLowerCase();
-	let day = vDate[0].split(' ')[0];
-	let month = 0;
-	switch(monthName)
-	{
-		case 'january': month = 1; break;
-		case 'february': month = 2; break;
-		case 'march': month = 3; break;
-		case 'april': month = 4; break;
-		case 'may': month = 5; break;
-		case 'june': month = 6; break;
-		case 'july': month = 7; break;
-		case 'august': month = 8; break;
-		case 'september': month = 9; break;
-		case 'october': month = 10; break;
-		case 'november': month = 11; break;
-		case 'december': month = 12; break;
-	}
-	
-	return `${year}-${month}-${day}`;
-}
-
-function formatDateFromDB(date)
-{
-	return date.split('-').reverse().join('/');
-}
 
 function getOptions(data,valueFrom,valueTo)
 {

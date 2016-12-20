@@ -5,7 +5,7 @@
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 	<link type="text/css" rel="stylesheet" href="css/estilo.css"  media="screen,projection"/>
-	<title>User Managment System</title>
+	<title>User Management System</title>
 </head>
 <body>
 <script src="js/menu.js"></script>
@@ -25,11 +25,7 @@
 		</div>
 	</div>
 	<br>
-	<!--div class="row">
-		<div class="col s12 right-align">
-			<a class="waves-effect waves-light btn-large" href="formComercio.html">New user</a>
-		</div>
-	</div-->
+	
 	<table class="highlight striped responsive-table">
 		<thead>
 			<tr>
@@ -47,6 +43,9 @@
 			<i class="large material-icons" id="iconEdit">add</i>
 		</a>
 	</div>
+
+	<!--Modals-->
+	<!--Modal to delete user-->
 	<div id="deleteUser" class="modal">
 		<div class="modal-content">
 			<h4 class="center-align">Delete</h4>
@@ -61,21 +60,7 @@
 			<a id="deleteBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Delete</a>
 		</div>
 	</div>
-	<div id="removeGroup" class="modal">
-		<div class="modal-content">
-			<h4 class="center-align">Remove</h4>
-			<div class="row">
-				<div class="col s12 center">
-					Are you sure you want to remove <strong><span id="userToRemove"></span></strong> from <strong><span id="groupToRemove"></span></strong>?
-				</div>
-			</div>
-		</div>
-		<div class="modal-footer">
-			<a id="cancelBtn" class="modal-action modal-close waves-effect waves-red btn-flat" >Cancel</a>
-			<a id="removeBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Remove</a>
-		</div>
-	</div>
-
+	<!--Modal to assign users to groups-->
 	<div id="assignGroup" class="modal">
 		<div class="modal-content">
 			<h4 class="center-align">Assign</h4>
@@ -95,7 +80,7 @@
 			<a id="assignBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Assign</a>
 		</div>
 	</div>
-
+	<!--Modal to create users-->
 	<div id="genModal" class="modal">
 		<div class="modal-content">
 			<h4 class="center-align"><span id="nameGenModal">New User</span></h4>
@@ -138,12 +123,15 @@
 const l = new Loader();
 let userData = [];
 let indexDelete;
-let offset = 0;
+let indexEdit;
+let removeIndex;
+let removeGroupId;
 let groupData = [{id:0,name:'None'}];
+
+//Get all the users when loading the page
 function getUser()
 {
     const param = {
-        offset,
         action: 'get',
     };
 
@@ -165,6 +153,7 @@ function getUser()
 	});
 }
 
+//Parsing data from the server
 function parseUserData(data) {
 
 	let prevName = '';
@@ -205,13 +194,15 @@ function parseUserData(data) {
 			groups.push(objGroup);
 		}
 	}
-
-	objUser.groups = groups;
-	userData.push(objUser);
+	if(objUser != null) {
+		objUser.groups = groups;
+		userData.push(objUser);
+	}
 
 	successGetUser();
 }
 
+//Show data from the server
 function successGetUser()
 {
 	let data = userData;
@@ -245,6 +236,7 @@ function successGetUser()
 	loadGroups();
 }
 
+//Load the chips from groups
 function loadGroups() {
 	let data = userData;
 
@@ -285,9 +277,7 @@ function loadGroups() {
 	});
 }
 
-let removeIndex;
-let removeGroupId;
-
+//Remove a user from a group
 function removeGroup(user,group) {
 
 	const param = {
@@ -304,31 +294,14 @@ function removeGroup(user,group) {
 			const r = parse(response);
 
 			if(r.success) {
-				const u = userData[removeIndex];
-				const groupUser = u.groups;
-				
-				let indexToRemoveGroup = null
-
-				for(let index in groupUser) {
-					let group = groupUser[index];
-					if(group.id == removeGroupId) {
-						indexToRemoveGroup = index;
-						break;
-					}
-				}
-
-				if(indexToRemoveGroup != null) {
-					groupUser.splice(indexToRemoveGroup,1);
-					u.groups = groupUser;
-				}
-
 				removeIndex = null;
 				removeGroupId = null;
+				getUser();
 			} else {
 				toasty('There was an error removing the group from the user','error');
 			}
 
-			parseUserData(userData);
+			
 		},
 		error: function(response) {
 			toasty('There was a connection problem','error');
@@ -336,6 +309,7 @@ function removeGroup(user,group) {
 	});
 }
 
+//Get group data from the server
 function getGroups() {
 	const param = {
         action: 'getCombo',
@@ -432,6 +406,8 @@ function assignGroupUser(id) {
 		action: 'assignGroup'
 	};
 
+	l.start();
+
 	$.ajax({
 		type: 'POST',
 		url: './api/userController.php',
@@ -447,6 +423,8 @@ function assignGroupUser(id) {
 		error: function(msg) {
 			toasty('There was a connection problem','error');
 		}
+	}).done(function() {
+  		l.stop();
 	});
 
 }
@@ -469,8 +447,6 @@ function newUser()
 	$('select').material_select();
 	$('#genModal').openModal();
 }
-
-let indexEdit;
 
 function editUser(index) {
 	indexEdit = index;
@@ -556,7 +532,6 @@ function saveUser(update)
 		success: function(response)
 		{
 			const r = parse(response);
-			l.stop();
 			if(r.success)
 			{
 				getUser();
@@ -566,9 +541,10 @@ function saveUser(update)
 		},
 		error: function(msg)
 		{
-			l.stop();
 			toasty(global.conectionErr,'error');
 		}
+	}).done(function() {
+  		l.stop();
 	});
 }
 
@@ -605,16 +581,6 @@ function deleteUser(id) {
   		l.stop();
 	});
 }
-
-/*
-window.onscroll = function(ev) {
-    if ((document.body.offsetHeight - (window.innerHeight + window.scrollY) < 40)  && loading)
-	{
-		loading = false;
-        getUser();
-    }
-};
-*/
 
 $(document).ready(function()
 {
