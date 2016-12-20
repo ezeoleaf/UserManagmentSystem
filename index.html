@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="x-ua-compatible" content="ie=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<link type="text/css" rel="stylesheet" href="css/materialize.min.css" media="screen,projection"/>
+	<title>User Managment System</title>
+</head>
+<body>
+<div class="container-fluid">
+	<div class="navbar-fixed">
+		<nav>
+			<div class="nav-wrapper nav-bar-fixed blue darken-4">
+				<a class="brand-logo center">UMS - Shiftgig</a>
+			</div>
+		</nav>
+	</div>
+</div>
+<div class="container">
+	<div class="preloader-wrapper active" id="loader">
+    	<div class="spinner-layer spinner-green-only">
+			<div class="circle-clipper left">
+				<div class="circle"></div>
+			</div>
+			<div class="gap-patch">
+				<div class="circle"></div>
+			</div>
+			<div class="circle-clipper right">
+				<div class="circle"></div>
+			</div>
+		</div>
+	</div>
+	<div class="card-panel green lighten-5">
+		<div class="center-align" >
+			<img class="circle responsive-img" src="img/login.png" id="loginImg">
+		</div>
+		<div class="row">
+			<form class="col s12" action="#" onsubmit="return doLogin()">
+				<div class="row">
+					<div class="input-field col s12">
+						<input id="username" type="text" placeholder="Username or email">
+						<label for="username">Username</label>
+					</div>
+				</div>
+				<div class="row">
+					<div class="input-field col s12">
+						<input id="password" type="password" placeholder="Password">
+						<label for="password">Password</label>
+					</div>
+				</div>
+				<div class="center-align">
+					<button class="btn waves-effect light-blue darken-3" type="submit" name="action">Log in
+						<i class="material-icons right">done</i>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<div class="footer-copyright right-align">
+    <div class="container">
+        <i>© Shiftgig</i>
+    </div>
+</div>
+<link type="text/css" rel="stylesheet" href="css/estilo.css"  media="screen,projection"/>
+<script type="text/javascript" src="js/jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="js/materialize.min.js"></script>
+<script type="text/javascript" src="js/md5.min.js"></script>
+<script type="text/javascript" src="js/functions.js"></script>
+<script>
+const l = new Loader();
+function doLogin()
+{
+	const user = $('#username').val().trim();
+	let pass = $('#password').val();
+	if(user.length == 0 || pass.length == 0)
+	{
+		toasty('Please enter a username and a password','error');
+		return false;
+	}
+	
+	pass = md5(pass);
+
+	const param = {
+		user,
+		pass,
+		action:'login',
+	};
+	l.start();
+	$.ajax({
+		type: "POST",
+		url: './api/userAppController.php',
+		data: param,
+		success: function(response)
+		{
+			l.stop();
+			const resp = parse(response);
+			if(resp.success) {
+				redirect('home.html');
+			} else {
+				toasty('Invalid data','error');
+			}
+		},
+		error: function(msg)
+		{
+			l.stop();
+			toasty(`We have encountered some troubles.`,'error');
+		}
+	});
+
+	return false;
+}
+
+$(document).ready(function(){
+ 	
+});
+</script>
+</body>
+</html>

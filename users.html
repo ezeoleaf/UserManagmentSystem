@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<link type="text/css" rel="stylesheet" href="css/estilo.css"  media="screen,projection"/>
+	<title>User Managment System</title>
+</head>
+<body>
+<script src="js/menu.js"></script>
+<script>showSubNavBar('Users')</script>
+<div class="container">
+	<div class="preloader-wrapper active" id="loader">
+		<div class="spinner-layer spinner-green-only">
+			<div class="circle-clipper left">
+				<div class="circle"></div>
+			</div>
+			<div class="gap-patch">
+				<div class="circle"></div>
+			</div>
+			<div class="circle-clipper right">
+				<div class="circle"></div>
+			</div>
+		</div>
+	</div>
+	<br>
+	<!--div class="row">
+		<div class="col s12 right-align">
+			<a class="waves-effect waves-light btn-large" href="formComercio.html">New user</a>
+		</div>
+	</div-->
+	<table class="highlight responsive-table">
+		<thead>
+			<tr>
+                <th data-field="name">Name</th>
+				<th data-field="description">Description</th>
+				<th data-field="groups">Groups</th>
+				<th data-field="action">Actions</th>
+			</tr>
+        </thead>
+        <tbody id="userBody">
+        </tbody>
+	</table>
+	<div class="fixed-action-btn">
+		<a class="btn-floating btn-large red darken-1" onclick="newUser()">
+			<i class="large material-icons" id="iconEdit">add</i>
+		</a>
+	</div>
+	<div id="deleteUser" class="modal">
+		<div class="modal-content">
+			<h4 class="center-align">Delete</h4>
+			<div class="row">
+				<div class="col s12 center">
+					Are you sure you want to delete <strong><span id="userToDelete"></span></strong>?
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<a id="cancelBtn" class="modal-action modal-close waves-effect waves-red btn-flat" >Cancel</a>
+			<a id="deleteBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Delete</a>
+		</div>
+	</div>
+	<div id="genModal" class="modal">
+		<div class="modal-content">
+			<h4 class="center-align"><span id="nameGenModal">New User</span></h4>
+			<div class="row">
+				<div class="input-field col s12">
+					<input id="editId" type="hidden"/>
+					<input id="indexId" type="hidden"/>
+					<input id="name" type="text" required>
+					<label for="name">Name</label>
+				</div>
+			</div>
+			<div class="row">
+				<div class="input-field col s12">
+					<input id="description" type="text" required>
+					<label for="description">Description</label>
+				</div>
+			</div>
+			<div class="row">
+				<div class="input-field col s12">
+					<select id="group">
+					</select>
+					<label>Group</label>
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<a id="saveBtn" class="modal-action modal-close waves-effect waves-green btn-flat" onclick="saveUser()"><span id="saveBtnText">Create</span></a>
+		</div>
+	</div>
+</div>
+<div class="footer-copyright right-align">
+	<div class="container">
+		<i>© Shiftgig</i>
+	</div>
+</div>
+<script src="js/jquery-2.1.1.min.js"></script>
+<script src="js/materialize.min.js"></script>
+<script src="js/functions.js"></script>
+<script>
+const l = new Loader();
+let userData = [];
+let indexDelete;
+let offset = 0;
+let groupData = [{id:0,name:'None'}];
+function getUser()
+{
+	//const excIds = getIds(comercioData); 
+    const param = {
+        offset,
+        action: 'get',
+    };
+
+	l.start();
+	$.ajax({
+		type:"POST",
+		url: './api/userController.php',
+		data: param,
+		success: function(response)
+		{
+			const r = parse(response);
+            userData = r;
+			loading = (r.length == r.total) ? true : false;
+			userData = userData.concat(r);
+			successGetUser();
+		},
+		error: function(msg)
+		{
+			l.stop();
+			toasty('No se pudo obtener los comercios','error');
+		}
+	});
+}
+
+function successGetUser()
+{
+	let data = userData;
+	let html = '';
+	let leng = data.length;
+
+	if(leng == 0) {
+		html = `<tr><td colspan="4" class="center">There are no users registered</td></tr>`
+	}
+
+	for(let i = 0; i < leng; i++)
+	{
+		let d = data[i];
+
+		const groups = d.groups;
+
+		html += `<tr>
+			<td>${d.name}</td>
+			<td>${d.description}</td>
+			<td>${groups}</td>
+			<td>
+				<a class="actionIcon" onclick="editUser(${d.id})"><i class="material-icons">edit</i></a>&nbsp;
+				<a class="actionIcon" onclick="openModalDelete(${i})"><i class="material-icons">delete</i></a>&nbsp;
+				<a class="actionIcon" onclick="openModalAssing(${i})"><i class="material-icons">group_add</i></a>
+			</td>
+			</tr>`;
+	}
+	l.stop();
+	$('#userBody').html(html);
+}
+
+function getGroups() {
+	const param = {
+        action: 'getCombo',
+    };
+
+	l.start();
+	$.ajax({
+		type:"POST",
+		url: './api/groupController.php',
+		data: param,
+		success: function(response)
+		{
+			const r = parse(response);
+            groupData = groupData.concat(r);
+		},
+		error: function(msg)
+		{
+			l.stop();
+			toasty('There was a problem getting the groups','error');
+		}
+	});
+}
+
+function openModalDelete(index) {
+	indexDelete = index;
+	const comercio = comercioData[index];
+	$('#comercioToDelete').html(comercio.NOMBRE);
+	$('#deleteBtn').attr('onclick',`deleteComercio(${comercio.id})`);
+	$('#deleteComercio').openModal();
+}
+
+function newUser()
+{
+	$('#saveBtn').attr('onclick','saveUser()');
+
+	let groupOptions = getOptions(groupData);
+
+	$('#nameGenModal').html('New User');
+	$('#saveBtnText').html('Create');
+	$('#name').val('');
+	$('#description').val('');
+	$('#editId').val('0');
+	$('#indexId').val('0');
+	$('#group').html(groupOptions);
+	$('select').material_select();
+	$('#genModal').openModal();
+}
+
+function saveItem()
+{
+	const vEmpty = ['name--Enter the name'];
+    if(emptyCheck(vEmpty)) return false;
+
+	const name = $('#name').val();
+	const category = $('#category').val();
+	const duration = $('#duration').val();
+	const expirationDate = $('#expirationDate').val();
+	const id = getItem('id');
+
+	const param = {
+		id,
+		name,
+		category,
+		duration,
+		expirationDate
+	};
+	l.start();
+	$.ajax({
+		type:"POST",
+		url:`${global.urlApi}saveItem.php`,
+		data:param,
+		success: function(response)
+		{
+			const r = parse(response)[0];
+			l.stop();
+			if(r.success == 't')
+			{
+				getItems();
+			} else {
+				toasty('There was an error when saving. Try again.','error');
+			}
+		},
+		error: function(msg)
+		{
+			l.stop();
+			toasty(global.conectionErr,'error');
+		}
+	});
+}
+
+function deleteComercio(id) {
+	const param = {
+        action:'eliminar',
+        id,
+	};
+
+	l.start();
+	$.ajax({
+		type:"POST",
+		data: param,
+		url: './api/comercioController.php',
+		success: function(response)
+		{
+			const r = parse(response);
+			if(r.success)
+			{
+				comercioData[indexDelete].DELETED_AT = 't';
+				indexDelete = null;
+				successGetComercio();
+			}
+			else
+			{
+				toasty('No se pudo eliminar el comercio.','error');
+			}
+		},
+		error: function(msg)
+		{
+			toasty('Hubo un error de conexión','error');
+		}
+	}).done(function() {
+  		l.stop();
+	});
+}
+
+/*
+window.onscroll = function(ev) {
+    if ((document.body.offsetHeight - (window.innerHeight + window.scrollY) < 40)  && loading)
+	{
+		loading = false;
+        getUser();
+    }
+};
+*/
+
+$(document).ready(function()
+{
+	$(".button-collapse").sideNav();
+	getUser();
+	getGroups();
+});
+</script>
+</body>
+</html>
