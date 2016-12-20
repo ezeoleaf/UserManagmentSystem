@@ -36,25 +36,20 @@ function toasty(text,style,time)
 	$('.toast').css('color',color);
 	$('#toast-container').css('width','100%');
 	$('#toast-container').css('top','auto');
-	$('#toast-container').css('right','auto');
+	//$('#toast-container').css('right','auto');
 	$('#toast-container').css('bottom','50%');
 	$('.toast').css('width','100%');
 	$('.toast').css('text-align','center');
 	$('.toast span').css('width','100%');
 }
-const urlApi = './api';
+
 const excludedLoc = ['index','registro','restauraPass'];
 const storage = window.localStorage;
 const options = {
 	'home':'liHome',
-	'ciudad':'liCiudad',
-	'formCiudad':'liCiudad',
-	'comercio':'liComercio',
-	'formComercio':'liComercio',
-	'rubro':'liRubro',
-	'formRubro':'liRubro',
+	'users':'liUsers',
+	'groups':'liGroups'
 };
-let notified = false;
 
 function getLoc()
 {

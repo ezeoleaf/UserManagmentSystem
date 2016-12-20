@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+	<link type="text/css" rel="stylesheet" href="css/materialize.css"  media="screen,projection"/>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 	<link type="text/css" rel="stylesheet" href="css/estilo.css"  media="screen,projection"/>
@@ -30,7 +30,7 @@
 			<a class="waves-effect waves-light btn-large" href="formComercio.html">New user</a>
 		</div>
 	</div-->
-	<table class="highlight responsive-table">
+	<table class="highlight striped responsive-table">
 		<thead>
 			<tr>
                 <th data-field="name">Name</th>
@@ -61,6 +61,41 @@
 			<a id="deleteBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Delete</a>
 		</div>
 	</div>
+	<div id="removeGroup" class="modal">
+		<div class="modal-content">
+			<h4 class="center-align">Remove</h4>
+			<div class="row">
+				<div class="col s12 center">
+					Are you sure you want to remove <strong><span id="userToRemove"></span></strong> from <strong><span id="groupToRemove"></span></strong>?
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<a id="cancelBtn" class="modal-action modal-close waves-effect waves-red btn-flat" >Cancel</a>
+			<a id="removeBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Remove</a>
+		</div>
+	</div>
+
+	<div id="assignGroup" class="modal">
+		<div class="modal-content">
+			<h4 class="center-align">Assign</h4>
+			<div class="row">
+				<div class="col s12 center">
+					Assign groups to <strong><span id="userToAssign"></span></strong>
+				</div>
+			</div>
+			<div class="row" id="groupsAssign">
+				<div class="col s12 center">
+					Groups
+				</div><br><br>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<a id="cancelBtn" class="modal-action modal-close waves-effect waves-red btn-flat" >Cancel</a>
+			<a id="assignBtn" class="modal-action modal-close waves-effect waves-green btn-flat" >Assign</a>
+		</div>
+	</div>
+
 	<div id="genModal" class="modal">
 		<div class="modal-content">
 			<h4 class="center-align"><span id="nameGenModal">New User</span></h4>
@@ -68,7 +103,7 @@
 				<div class="input-field col s12">
 					<input id="editId" type="hidden"/>
 					<input id="indexId" type="hidden"/>
-					<input id="name" type="text" required>
+					<input id="name" onblur="checkName()" type="text" required>
 					<label for="name">Name</label>
 				</div>
 			</div>
@@ -107,7 +142,6 @@ let offset = 0;
 let groupData = [{id:0,name:'None'}];
 function getUser()
 {
-	//const excIds = getIds(comercioData); 
     const param = {
         offset,
         action: 'get',
@@ -121,17 +155,61 @@ function getUser()
 		success: function(response)
 		{
 			const r = parse(response);
-            userData = r;
-			loading = (r.length == r.total) ? true : false;
-			userData = userData.concat(r);
-			successGetUser();
+			parseUserData(r);
 		},
 		error: function(msg)
 		{
 			l.stop();
-			toasty('No se pudo obtener los comercios','error');
+			toasty('There was a problem getting the users','error');
 		}
 	});
+}
+
+function parseUserData(data) {
+
+	let prevName = '';
+	let objUser = null;
+	let groups = [];
+	userData = [];
+
+	for(let index in data) {
+		let user = data[index];
+
+		if(user.name != prevName) {
+			prevName = user.name;
+			if(objUser != null) {
+				objUser.groups = groups;
+				userData.push(objUser);
+			}
+			groups = [];
+
+			objUser = {
+				id: user.id,
+				name: user.name,
+				description: user.description
+			} 
+			if(user.gid != null) {
+				let objGroup = {
+					id: user.gid,
+					name: user.groups,
+				};
+
+				groups.push(objGroup);
+			}
+		} else {
+			let objGroup = {
+				id: user.gid,
+				name: user.groups,
+			};
+
+			groups.push(objGroup);
+		}
+	}
+
+	objUser.groups = groups;
+	userData.push(objUser);
+
+	successGetUser();
 }
 
 function successGetUser()
@@ -148,21 +226,114 @@ function successGetUser()
 	{
 		let d = data[i];
 
-		const groups = d.groups;
+		let groups = '';
 
 		html += `<tr>
 			<td>${d.name}</td>
 			<td>${d.description}</td>
-			<td>${groups}</td>
+			<td class="chipsColumn"><div class="chips chips-initial-${d.id}"></div></td>
 			<td>
-				<a class="actionIcon" onclick="editUser(${d.id})"><i class="material-icons">edit</i></a>&nbsp;
-				<a class="actionIcon" onclick="openModalDelete(${i})"><i class="material-icons">delete</i></a>&nbsp;
-				<a class="actionIcon" onclick="openModalAssing(${i})"><i class="material-icons">group_add</i></a>
+				<a class="actionIcon" title="Edit" onclick="editUser(${i})"><i class="material-icons">edit</i></a>&nbsp;
+				<a class="actionIcon" title="Delete" onclick="openModalDelete(${i})"><i class="material-icons">delete</i></a>&nbsp;
+				<a class="actionIcon" title="Assign to Groups" onclick="openModalAssing(${i})"><i class="material-icons">group_add</i></a>
 			</td>
 			</tr>`;
 	}
 	l.stop();
 	$('#userBody').html(html);
+
+	loadGroups();
+}
+
+function loadGroups() {
+	let data = userData;
+
+	for(let index in userData) {
+		let user = userData[index];
+
+		let groups = user.groups;
+
+		let objChipGroup = [];
+
+		for(let indexGroup in groups) {
+			let group = groups[indexGroup];
+
+			let objChip = {
+				tag: group.name,
+				id: group.id,
+				user: user.id,
+				index: index,
+			}
+
+			objChipGroup.push(objChip);
+		}
+
+		if(objChipGroup.length > 0) {
+
+			$(`.chips-initial-${user.id}`).material_chip({
+				data: objChipGroup,
+			});
+		}
+
+	}
+
+	$('.chips').on('chip.delete', function(e, chip){
+		removeIndex = chip.index;
+		removeGroupId = chip.id;
+		removeGroup(chip.user,chip.id);
+		//showModalRemove(chip);
+	});
+}
+
+let removeIndex;
+let removeGroupId;
+
+function removeGroup(user,group) {
+
+	const param = {
+		id: user,
+		group: group,
+		action: 'removeGroupUser',
+	};
+
+	$.ajax({
+		type: 'POST',
+		url: './api/userController.php',
+		data: param,
+		success: function(response) {
+			const r = parse(response);
+
+			if(r.success) {
+				const u = userData[removeIndex];
+				const groupUser = u.groups;
+				
+				let indexToRemoveGroup = null
+
+				for(let index in groupUser) {
+					let group = groupUser[index];
+					if(group.id == removeGroupId) {
+						indexToRemoveGroup = index;
+						break;
+					}
+				}
+
+				if(indexToRemoveGroup != null) {
+					groupUser.splice(indexToRemoveGroup,1);
+					u.groups = groupUser;
+				}
+
+				removeIndex = null;
+				removeGroupId = null;
+			} else {
+				toasty('There was an error removing the group from the user','error');
+			}
+
+			parseUserData(userData);
+		},
+		error: function(response) {
+			toasty('There was a connection problem','error');
+		}
+	});
 }
 
 function getGroups() {
@@ -178,7 +349,8 @@ function getGroups() {
 		success: function(response)
 		{
 			const r = parse(response);
-            groupData = groupData.concat(r);
+			groupData = r;
+			parseGroupsData();
 		},
 		error: function(msg)
 		{
@@ -188,19 +360,104 @@ function getGroups() {
 	});
 }
 
+function parseGroupsData() {
+	
+	let htmlGroup = '';
+	
+	for(let index in groupData) {
+		let group = groupData[index];
+
+		htmlGroup += `<div class="col s4 center"><input type="checkbox" class="filled-in" id="check${group.id}"/>
+      <label for="check${group.id}">${group.name}</label></div>`;
+
+	}
+
+	$('#groupsAssign').append(htmlGroup);
+}
+
 function openModalDelete(index) {
 	indexDelete = index;
-	const comercio = comercioData[index];
-	$('#comercioToDelete').html(comercio.NOMBRE);
-	$('#deleteBtn').attr('onclick',`deleteComercio(${comercio.id})`);
-	$('#deleteComercio').openModal();
+	const user = userData[index];
+	$('#userToDelete').html(user.name);
+	$('#deleteBtn').attr('onclick',`deleteUser(${user.id})`);
+	$('#deleteUser').openModal();
+}
+
+function openModalAssing(index) {
+	const user = userData[index];
+
+	const userGroups = user.groups;
+
+	for(let groupIndex in groupData) {
+		const group = groupData[groupIndex];
+		let found = false;
+
+		for(let userGroupIndex in userGroups) {
+			if(group.id == userGroups[userGroupIndex].id) {
+				found = true;
+				break;
+			}
+		}
+
+		if(found) {
+			$(`#check${group.id}`).prop('checked','checked');
+		} else {
+			$(`#check${group.id}`).prop('checked','');
+		}
+	}
+
+	$('#userToAssign').html(user.name);
+	$('#assignBtn').attr('onclick',`assignGroupUser(${user.id})`);
+	$('#assignGroup').openModal();
+}
+
+function assignGroupUser(id) {
+
+	let groupsToAssign = '';
+
+	for(let groupIndex in groupData) {
+		const group = groupData[groupIndex];
+		if($(`#check${group.id}`).is(':checked')) {
+			if(groupsToAssign != '') {
+				groupsToAssign += '-'; 
+			}
+
+			groupsToAssign += group.id;
+		}
+	}
+
+	const param = {
+		id,
+		groupsAssign: groupsToAssign,
+		action: 'assignGroup'
+	};
+
+	$.ajax({
+		type: 'POST',
+		url: './api/userController.php',
+		data: param,
+		success: function(response) {
+			const r = parse(response);
+			if(r.success) {
+				getUser();
+			} else {
+				toasty('There was an error when assigning the groups','error');
+			}
+		},
+		error: function(msg) {
+			toasty('There was a connection problem','error');
+		}
+	});
+
 }
 
 function newUser()
 {
 	$('#saveBtn').attr('onclick','saveUser()');
+	tempData = [{id:0,name:'None'}];
+	tempData = tempData.concat(groupData);
 
-	let groupOptions = getOptions(groupData);
+	let groupOptions = getOptions(tempData);
 
 	$('#nameGenModal').html('New User');
 	$('#saveBtnText').html('Create');
@@ -213,36 +470,96 @@ function newUser()
 	$('#genModal').openModal();
 }
 
-function saveItem()
+let indexEdit;
+
+function editUser(index) {
+	indexEdit = index;
+	const user = userData[index];
+	
+	$('#saveBtn').attr('onclick','saveUser(true)');
+
+	$('#nameGenModal').html('Edit User');
+	$('#saveBtnText').html('Edit');
+
+	$('#editId').val(user.id);
+	$('#name').val(user.name);
+	$('#description').val(user.description);
+
+	tempData = [{id:0,name:'None'}];
+	tempData = tempData.concat(groupData);
+
+	let groupOptions = getOptions(tempData);
+	$('#group').html(groupOptions);
+	$('select').material_select();
+
+	$('#genModal').openModal();
+	$('#description').focus();
+	$('#name').focus()
+}
+
+function checkName() {
+	if($('#editId').val() == 0) {
+		const name = $('#name').val();
+
+		const param = {
+			name,
+			action: 'checkName',
+		};
+
+		$.ajax({
+			type: 'POST',
+			url: './api/userController.php',
+			data: param,
+			success: function(response) {
+				const r = parse(response);
+				if(r.length > 0) {
+					toasty('There is another user with this username','error');
+					$('#name').val('');
+					$('#name').focus();
+				}
+			},
+			error: function(msg) {
+				toasty('There was an error checking the username','error');
+			}
+		});
+
+	}
+}
+
+function saveUser(update)
 {
 	const vEmpty = ['name--Enter the name'];
     if(emptyCheck(vEmpty)) return false;
 
 	const name = $('#name').val();
-	const category = $('#category').val();
-	const duration = $('#duration').val();
-	const expirationDate = $('#expirationDate').val();
-	const id = getItem('id');
+	const description = $('#description').val();
+	const group = $('#group').val();
 
 	const param = {
-		id,
 		name,
-		category,
-		duration,
-		expirationDate
+		description,
+		group,
 	};
+
+	if(update != undefined) {
+		param.action = 'update';
+		param.id = $('#editId').val();
+	} else {
+		param.action = 'create';
+	}
+
 	l.start();
 	$.ajax({
 		type:"POST",
-		url:`${global.urlApi}saveItem.php`,
+		url:`./api/userController.php`,
 		data:param,
 		success: function(response)
 		{
-			const r = parse(response)[0];
+			const r = parse(response);
 			l.stop();
-			if(r.success == 't')
+			if(r.success)
 			{
-				getItems();
+				getUser();
 			} else {
 				toasty('There was an error when saving. Try again.','error');
 			}
@@ -255,9 +572,9 @@ function saveItem()
 	});
 }
 
-function deleteComercio(id) {
+function deleteUser(id) {
 	const param = {
-        action:'eliminar',
+        action:'delete',
         id,
 	};
 
@@ -265,24 +582,24 @@ function deleteComercio(id) {
 	$.ajax({
 		type:"POST",
 		data: param,
-		url: './api/comercioController.php',
+		url: './api/userController.php',
 		success: function(response)
 		{
 			const r = parse(response);
 			if(r.success)
 			{
-				comercioData[indexDelete].DELETED_AT = 't';
+				userData.splice(indexDelete,1);
 				indexDelete = null;
-				successGetComercio();
+				parseUserData(userData);
 			}
 			else
 			{
-				toasty('No se pudo eliminar el comercio.','error');
+				toasty('There was an error when deleting the user.','error');
 			}
 		},
 		error: function(msg)
 		{
-			toasty('Hubo un error de conexión','error');
+			toasty('Conection troubles','error');
 		}
 	}).done(function() {
   		l.stop();

@@ -18,6 +18,9 @@ switch($action) {
     case 'update':
         $toEcho = $g->update();
         break;
+    case 'delete':
+        $toEcho = $g->delete();
+        break;
 }
 
 echo $toEcho;

@@ -34,6 +34,7 @@
 		<thead>
 			<tr>
                 <th data-field="name">Name</th>
+                <th data-field="description">Description</th>
 				<th data-field="users">Users</th>
 				<th data-field="action">Actions</th>
 			</tr>
@@ -45,6 +46,29 @@
 		<a class="btn-floating btn-large red darken-1" onclick="newGroup()">
 			<i class="large material-icons" id="iconEdit">add</i>
 		</a>
+	</div>
+	<div id="usersGroup" class="modal">
+		<div class="modal-content">
+			<h4 class="center-align">Users</h4>
+			<div class="row">
+				<div class="col s12 center">
+					Users in <strong><span id="groupName"></span></strong>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col s12 center">
+					<button class="btn waves-effect green lighten-1" id="removeAllUsers" type="button" onclick="removeAll()" name="action">Remove All
+						<i class="material-icons right deleteAllBtn">delete_forever</i>
+					</button>
+				</div>
+			</div>
+			<div class="row" id="usersInGroup">
+				
+			</div>
+		</div>
+		<div class="modal-footer">
+			<a id="cancelBtn" class="modal-action modal-close waves-effect waves-red btn-flat" >Close</a>
+		</div>
 	</div>
 	<div id="deleteGroup" class="modal">
 		<div class="modal-content">
@@ -95,11 +119,10 @@
 const l = new Loader();
 let groupData = [];
 let indexDelete;
-let offset = 0;
+
 function getGroups()
 {
     const param = {
-        offset,
         action: 'get',
     };
 
@@ -112,8 +135,6 @@ function getGroups()
 		{
 			const r = parse(response);
             groupData = r;
-			loading = (r.length == r.total) ? true : false;
-			groupData = groupData.concat(r);
 			successGetGroup();
 		},
 		error: function(msg)
@@ -143,9 +164,11 @@ function successGetGroup()
 		html += `<tr>
 			<td>${d.name}</td>
 			<td>${d.description}</td>
+			<td>${d.users}</td>
 			<td>
-				<a class="actionIcon" onclick="editGroup(${d.id})"><i class="material-icons">edit</i></a>&nbsp;
-				<a class="actionIcon" onclick="openModalDelete(${i})"><i class="material-icons">delete</i></a>&nbsp;
+				<a class="actionIcon" title="Edit" onclick="editGroup(${i})"><i class="material-icons">edit</i></a>&nbsp;
+				<a class="actionIcon" title="Delete" onclick="openModalDelete(${i})"><i class="material-icons">delete</i></a>&nbsp;
+				<a class="actionIcon" title="Users in Group" onclick="showUsers(${i})"><i class="material-icons">group</i></a>&nbsp;
 			</td>
 			</tr>`;
 	}
@@ -153,12 +176,106 @@ function successGetGroup()
 	$('#groupBody').html(html);
 }
 
+let indexShow;
+
+function openModalShowUsers(users) {
+	const group = groupData[indexShow];
+	$('#removeAllUsers').attr('onclick',`removeAll(${group.id})`);
+	indexShow = null;
+
+	$('#groupName').html(group.name);
+
+	let htmlUsers = '';
+
+	for(let index in users) {
+		const user = users[index];
+
+		htmlUsers += `<div class="col s12 center">${user.name}</div>`;
+	}
+
+	if(htmlUsers == '') {
+		htmlUsers += '<div class="col s12 center">There are no users</div>';
+	}
+
+	$('#usersInGroup').html(htmlUsers);
+	$('#usersGroup').openModal();
+}
+
+function removeAll(groupId) {
+	
+	const param = {
+		group: groupId,
+		action: 'removeAll',
+	};
+	l.start();
+	$.ajax({
+		type: 'POST',
+		url: './api/userController.php',
+		data: param,
+		success: function(response) {
+			const r = parse(response);
+			if(r.success) {
+				$('#usersGroup').closeModal();
+				getGroups();
+			} else {
+				toasty('The users cannot be removed from the group','error');
+			}
+		},
+		error: function(msg) {
+			toasty('There was an error with the connection','error');
+		}
+	}).done(function() {
+  		l.stop();
+	});
+
+}
+
+function showUsers(index) {
+	indexShow = index;
+	const group = groupData[index];
+
+	const param = {
+		group: group.id,
+		action: 'usersInGroup',
+	};
+
+	$.ajax({
+		type: 'POST',
+		url: './api/userController.php',
+		data: param,
+		success: function(response) {
+			openModalShowUsers(parse(response));
+		},
+		error: function(msg) {
+			toasty('There was an error when searching for users','error');
+		}
+	});
+}
+
 function openModalDelete(index) {
 	indexDelete = index;
-	const comercio = comercioData[index];
-	$('#comercioToDelete').html(comercio.NOMBRE);
-	$('#deleteBtn').attr('onclick',`deleteComercio(${comercio.id})`);
-	$('#deleteComercio').openModal();
+	const group = groupData[index];
+	$('#groupToDelete').html(group.name);
+	$('#deleteBtn').attr('onclick',`deleteGroup(${group.id})`);
+	$('#deleteGroup').openModal();
+}
+
+function editGroup(index) {
+	indexEdit = index;
+	const group = groupData[index];
+	
+	$('#saveBtn').attr('onclick','saveGroup(true)');
+
+	$('#nameGenModal').html('Edit Group');
+	$('#saveBtnText').html('Edit');
+
+	$('#editId').val(group.id);
+	$('#name').val(group.name);
+	$('#description').val(group.description);
+
+	$('#genModal').openModal();
+	$('#description').focus();
+	$('#name').focus();
 }
 
 function newGroup()
@@ -174,19 +291,25 @@ function newGroup()
 	$('#genModal').openModal();
 }
 
-function saveGroup()
+function saveGroup(update)
 {
 	const vEmpty = ['name--Enter the name'];
     if(emptyCheck(vEmpty)) return false;
 
 	const name = $('#name').val();
 	const description = $('#description').val();
-
 	const param = {
 		name,
 		description,
-        action: 'create',
 	};
+
+	if(update != undefined) {
+		param.action = 'update';
+		param.id = $('#editId').val();
+	} else {
+		param.action = 'create';
+	}
+	
 	l.start();
 	$.ajax({
 		type:"POST",
@@ -196,7 +319,7 @@ function saveGroup()
 		{
 			const r = parse(response);
 			l.stop();
-			if(r.success == 't')
+			if(r.success)
 			{
 				getGroups();
 			} else {
@@ -221,39 +344,29 @@ function deleteGroup(id) {
 	$.ajax({
 		type:"POST",
 		data: param,
-		url: './api/comercioController.php',
+		url: './api/groupController.php',
 		success: function(response)
 		{
 			const r = parse(response);
 			if(r.success)
 			{
-				comercioData[indexDelete].DELETED_AT = 't';
+				groupData.splice(indexDelete,1);
 				indexDelete = null;
-				successGetComercio();
+				successGetGroup();
 			}
 			else
 			{
-				toasty('No se pudo eliminar el comercio.','error');
+				toasty('You have users assign to this group. Remove them first','error');
 			}
 		},
 		error: function(msg)
 		{
-			toasty('Hubo un error de conexión','error');
+			toasty('There was an error with the connection','error');
 		}
 	}).done(function() {
   		l.stop();
 	});
 }
-
-/*
-window.onscroll = function(ev) {
-    if ((document.body.offsetHeight - (window.innerHeight + window.scrollY) < 40)  && loading)
-	{
-		loading = false;
-        getUser();
-    }
-};
-*/
 
 $(document).ready(function()
 {

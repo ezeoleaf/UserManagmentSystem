@@ -2,10 +2,10 @@
 
 class Connection
 {
-    private $dbServidor = 'l7000736.ferozo.com';
-    private $dbUser = 'l7000736_users';
-    private $dbPass = '88gozuPUvo';
-    private $dbName = 'l7000736_users';
+    private $dbServidor = 'localhost';
+    private $dbUser = 'root';
+    private $dbPass = 'mysql';
+    private $dbName = 'testuser';
     protected $link;
 
     public function connect() {
